@@ -1,0 +1,20 @@
+Donor -- after the food delievered update the foodlist status accordingly;
+        update meal served;
+        update active listings;
+        new section for delievered food;
+        rating
+
+Ngos -- Map integration;
+        filter with distances;
+        nearby donors, trust score, meals recieved;
+        accept food,
+        if have own volunteer then directly no card display on volunteer dashboard;
+        else display, generate a pickup code, sent to donor;
+
+        Recieving section on sidebar;
+
+Volunteer -- Map, food cards(assigned and delievered), 4 top tabs
+
+            view on map feature, 
+            can only see cards on recieving tab if and only if accepted by an nearby ngo;
+            accept food, details gets taken by ngo, assigns a pickup code; shows it to the donor to verify;

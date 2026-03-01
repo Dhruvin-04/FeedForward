@@ -1,0 +1,37 @@
+import { ConvexError, v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { authComponent } from "./auth";
+
+export const storeEmail = mutation({
+    args: {email: v.string(), role: v.string(), userId: v.string()},
+    handler: async (ctx, args)=>{
+        const emailStore = await ctx.db.insert('users', {
+            email: args.email,
+            role: args.role,
+            userId: args.userId,
+        })
+    }
+})
+
+export const storeSocketId = mutation({
+    args: {userId: v.string(), socketId: v.string()},
+    handler: async (ctx, args)=>{
+        const socketStore = await ctx.db.insert('userSockets', {
+            userId: args.userId,
+            socketId: args.socketId,
+        })
+    }
+})
+
+export const getRole = query({
+    args: {email: v.string()},
+    handler: async (ctx, args)=>{
+        const user = await ctx.db.query('users').collect()
+        for(const elem of user){
+            if(elem.email === args.email){
+                return elem.role
+            }
+        }
+        return null
+    }
+})
