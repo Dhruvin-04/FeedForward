@@ -19,7 +19,6 @@ const Map = dynamic(
 );
 
 export default function NGODashboard() {
-  const storeSocket = useMutation(api.user.storeSocketId)
 
   const [filter, setFilter] = useState({
     distance: 'all',
@@ -31,14 +30,12 @@ export default function NGODashboard() {
   const listings = useQuery(api.ngoProfile.getAvailableFood)
   const availableListings = Array.isArray(listings) ? listings.filter(l => l.status === 'available') : []
 
-    let socket=null;
+  useEffect(()=>{
     if(user){
-      socket = getSocket();
+      let socket = getSocket();
+      socket.emit('identity', user.userId)
     }
-    storeSocket({
-      userId: user?.userId || "",
-      socketId: socket?.id || "",
-    })
+  }, [user])
     
 
   // Client-side filters: quantity and time

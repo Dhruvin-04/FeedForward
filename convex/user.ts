@@ -16,10 +16,20 @@ export const storeEmail = mutation({
 export const storeSocketId = mutation({
     args: {userId: v.string(), socketId: v.string()},
     handler: async (ctx, args)=>{
-        const socketStore = await ctx.db.insert('userSockets', {
+        // find and remove any existing socket entry for this user
+        const existing = await ctx.db
+          .query('userSockets')
+          .filter(q => q.eq(q.field('userId'), args.userId))
+          .first();
+        if (existing) {
+          await ctx.db.delete(existing._id);
+        }
+        // insert the new socketId row
+        await ctx.db.insert('userSockets', {
             userId: args.userId,
             socketId: args.socketId,
-        })
+            updatedAt: new Date().toISOString()
+        });
     }
 })
 

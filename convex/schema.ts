@@ -35,6 +35,7 @@ export default defineSchema({
     userSockets: defineTable({
         userId: v.string(),
         socketId: v.string(),
+        updatedAt: v.optional(v.string()),
     }),
 
     foodlistings: defineTable({

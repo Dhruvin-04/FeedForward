@@ -6,6 +6,7 @@ import { login } from "@/schemas/auth";
 import { donorSchema } from "@/schemas/donorSchema";
 import { foodListingSchema } from "@/schemas/foodListing";
 import { ngoSchema } from "@/schemas/ngoSchema";
+import { socketSchema } from "@/schemas/storeSocket";
 import { userSchema } from "@/schemas/user";
 import { volunteerSchema } from "@/schemas/volunteerSchema";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
@@ -97,6 +98,28 @@ export async function createUser(data: z.infer<typeof userSchema>) {
             userId: parsed.data.userId,
         }, { token })
     } catch (error) {
+        return {
+            error: 'Something went wrong while filling details'
+        }
+    }
+}
+
+export async function storeSocket(data: z.infer<typeof socketSchema>){
+    // validation must use the socket schema, not userSchema
+    const parsed = socketSchema.safeParse(data)
+
+    if (!parsed.success) {
+        console.error('storeSocket validation failed', parsed.error.format());
+        throw new Error("Invalid socket data")
+    }
+    const token = await getToken();
+    try {
+        const socketStore = await fetchMutation(api.user.storeSocketId, {
+            userId: parsed.data.userId,
+            socketId: parsed.data.socketId,
+        }, { token })
+    } catch (error) {        
+        console.error('storeSocket mutation error', error);
         return {
             error: 'Something went wrong while filling details'
         }
