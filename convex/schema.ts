@@ -35,6 +35,10 @@ export default defineSchema({
     userSockets: defineTable({
         userId: v.string(),
         socketId: v.string(),
+        location: v.object({
+            type: v.string(), // "Point"
+            coordinates: v.array(v.number()) // [longitude, latitude]
+        }),
         updatedAt: v.optional(v.string()),
     }),
 

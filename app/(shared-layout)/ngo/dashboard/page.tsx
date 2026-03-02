@@ -12,6 +12,8 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { Mapview } from '@/components/web/Map'
 import { getSocket } from "@/lib/socket";
+import { Geo } from "next/font/google";
+import GeoUpdater from "@/components/web/GeoUpdater";
 
 const Map = dynamic(
   () => import("../../../../components/web/Map").then((component) => component.Mapview),
@@ -29,13 +31,6 @@ export default function NGODashboard() {
   const user = useQuery(api.ngoProfile.getNgoProfile)
   const listings = useQuery(api.ngoProfile.getAvailableFood)
   const availableListings = Array.isArray(listings) ? listings.filter(l => l.status === 'available') : []
-
-  useEffect(()=>{
-    if(user){
-      let socket = getSocket();
-      socket.emit('identity', user.userId)
-    }
-  }, [user])
     
 
   // Client-side filters: quantity and time
@@ -120,7 +115,7 @@ export default function NGODashboard() {
   }
 
    const locations = [
-    { id: "550e8400-e29b-41d4-a716-446655440000", lat: 18.9774, lng: 72.8350 },
+    { id: "550e8400-e29b-41d4-a716-446655440000", lat: 19.293509, lng: 73.060699 },
     { id: "550e8400-e29b-41d4-a716-446655440013", lat: 18.9772, lng: 72.7350 },
     { id: "550e8400-e29b-41d4-a716-446655440014", lat: 18.9674, lng: 72.8650 },
     { id: "550e8400-e29b-41d4-a716-446655440015", lat: 18.9764, lng: 72.8300 },
@@ -132,6 +127,7 @@ export default function NGODashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar role="ngo" userName={user?.organizationName || "My Organization"} />
+      <GeoUpdater userId={user?.userId || ''} />
       <div className="flex">
         <Sidebar role="ngo" />
         <main className="flex-1 p-6 lg:p-8">

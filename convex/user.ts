@@ -14,7 +14,10 @@ export const storeEmail = mutation({
 })
 
 export const storeSocketId = mutation({
-    args: {userId: v.string(), socketId: v.string()},
+    args: {userId: v.string(), socketId: v.string(), location: v.object({
+        type: v.string(), // "Point"
+        coordinates: v.array(v.number()) // [longitude, latitude]
+    })},
     handler: async (ctx, args)=>{
         // find and remove any existing socket entry for this user
         const existing = await ctx.db
@@ -28,6 +31,7 @@ export const storeSocketId = mutation({
         await ctx.db.insert('userSockets', {
             userId: args.userId,
             socketId: args.socketId,
+            location: args.location,
             updatedAt: new Date().toISOString()
         });
     }

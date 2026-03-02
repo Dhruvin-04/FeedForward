@@ -109,7 +109,7 @@ export async function storeSocket(data: z.infer<typeof socketSchema>){
     const parsed = socketSchema.safeParse(data)
 
     if (!parsed.success) {
-        console.error('storeSocket validation failed', parsed.error.format());
+
         throw new Error("Invalid socket data")
     }
     const token = await getToken();
@@ -117,6 +117,7 @@ export async function storeSocket(data: z.infer<typeof socketSchema>){
         const socketStore = await fetchMutation(api.user.storeSocketId, {
             userId: parsed.data.userId,
             socketId: parsed.data.socketId,
+            location: parsed.data.location
         }, { token })
     } catch (error) {        
         console.error('storeSocket mutation error', error);

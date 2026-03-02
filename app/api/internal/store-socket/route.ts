@@ -14,13 +14,13 @@ export async function POST(req: Request) {
     return new NextResponse('Bad Request', { status: 400 });
   }
 
-  const { userId, socketId } = body ?? {};
-  if (!userId || !socketId) {
+  const { userId, socketId, location } = body ?? {};
+  if (!userId || !socketId || !location) {
     return new NextResponse('Missing fields', { status: 400 });
   }
 
   try {
-    await storeSocket({ userId, socketId });
+    await storeSocket({ userId, socketId, location });
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('error in /api/internal/store-socket', err);
