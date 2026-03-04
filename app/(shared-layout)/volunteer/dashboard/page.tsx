@@ -1,3 +1,4 @@
+'use client'
 import Link from 'next/link'
 import { Package, TrendingUp, MapPin, Star, ArrowRight } from 'lucide-react'
 import { getPickupsByVolunteer, mockPickups } from '@/lib/mockData'
@@ -5,18 +6,36 @@ import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
 import StatCard from '@/components/web/StatCard'
 import StatusBadge from '@/components/web/StatusBadge'
-import MapPlaceholder from '@/components/web/MapPlaceholder'
-import { useEffect } from 'react'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import { useEffect, useState, useMemo } from 'react'
+import { getSocket } from '@/lib/socket'
+import dynamic from 'next/dynamic'
+import type { LiveLocation } from '@/components/web/LiveMap'
+
+interface ILocation{
+  latitude: number,
+  longitude: number
+}
+
+const LiveMap = dynamic(
+  () => import('@/components/web/LiveMap'),
+  { ssr: false }
+);
 
 export default function VolunteerDashboard() {
-
-  useEffect(()=>{
-       
-  }, [])
 
   const volunteerId = '3' // Mock volunteer ID
   const pickups = getPickupsByVolunteer(volunteerId)
   const activePickups = pickups.filter(p => p.status !== 'delivered')
+  const user = useQuery(api.volunteerProfile.getVolunteerProfile)
+  const updateLocation = useMutation(api.user.updateLocation)
+
+  // Fetch real pickups for this volunteer from Convex
+  const realPickups = useQuery(api.pickups.getVolunteerPickups)
+
+  // Query ALL active user locations (donors, NGOs, volunteers) — reactive
+  const allActiveLocations = useQuery(api.user.getAllActiveLocations)
 
   const stats = {
     activePickups: activePickups.length,
@@ -25,9 +44,77 @@ export default function VolunteerDashboard() {
     rating: 4.7,
   }
 
+  const [userLocation, setUserLocation] = useState<ILocation>({ latitude: 0, longitude: 0 })
+
+  useEffect(()=>{
+        let socket = getSocket()
+          if(!user?.userId) return
+          if(!navigator.geolocation) return
+          const watcher = navigator.geolocation.watchPosition((position) => {
+              const { latitude, longitude } = position.coords
+              setUserLocation({ latitude, longitude })
+              const loc = {
+                  type: "Point" as const,
+                  coordinates: [longitude, latitude]
+              }
+              socket.emit('identity', {
+                  userId: user.userId,
+                  location: loc
+              })
+              // Also persist location directly to the users table
+              updateLocation({ userId: user.userId, location: loc })
+          }, (error) => {
+              console.error('Error watching position:', error)
+          }, { enableHighAccuracy: true })
+          return () => navigator.geolocation.clearWatch(watcher)
+      }, [user?.userId])
+
+  // Build LiveMap locations from all active user locations
+  const liveLocations = useMemo<LiveLocation[]>(() => {
+    const locs: LiveLocation[] = []
+
+    // Add volunteer's own location (freshest from browser geolocation)
+    if (userLocation.latitude !== 0 || userLocation.longitude !== 0) {
+      locs.push({
+        userId: user?.userId ?? 'self',
+        lat: userLocation.latitude,
+        lng: userLocation.longitude,
+        role: 'volunteer',
+        label: 'You',
+      })
+    }
+
+    // Add all other users with locations from the DB
+    if (allActiveLocations) {
+      for (const u of allActiveLocations) {
+        // Skip self (we already added the volunteer above with fresh coords)
+        if (u.userId === user?.userId) continue
+        locs.push({
+          userId: u.userId,
+          lat: u.location.coordinates[1],
+          lng: u.location.coordinates[0],
+          role: u.role,
+        })
+      }
+    }
+
+    return locs
+  }, [userLocation, allActiveLocations, user?.userId])
+
+  // Compute a sensible map center
+  const mapCenter = useMemo(() => {
+    if (userLocation.latitude !== 0 || userLocation.longitude !== 0) {
+      return { lat: userLocation.latitude, lng: userLocation.longitude }
+    }
+    if (liveLocations.length > 0) {
+      return { lat: liveLocations[0].lat, lng: liveLocations[0].lng }
+    }
+    return { lat: 18.9774, lng: 72.8350 } // fallback
+  }, [userLocation, liveLocations])
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar role="volunteer" userName="John Doe" />
+      <Navbar role="volunteer" userName={user?.userName || "John Doe"} />
       <div className="flex">
         <Sidebar role="volunteer" />
         <main className="flex-1 p-6 lg:p-8">
@@ -130,7 +217,7 @@ export default function VolunteerDashboard() {
                                 <p className="text-sm text-gray-600">
                                   {pickup.donorName} → {pickup.ngoName}
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-gray-500 mt-1" suppressHydrationWarning>
                                   Delivered: {pickup.deliveredAt ? new Date(pickup.deliveredAt).toLocaleString() : 'N/A'}
                                 </p>
                               </div>
@@ -143,10 +230,10 @@ export default function VolunteerDashboard() {
                 )}
               </div>
 
-              {/* Map Preview */}
+              {/* Live Map */}
               <div>
-                <h2 className="text-xl font-semibold mb-4">Map Preview</h2>
-                <MapPlaceholder location="Active pickup routes" height="h-96" />
+                <h2 className="text-xl font-semibold mb-4">Live Map</h2>
+                <LiveMap locations={liveLocations} center={mapCenter} height="h-96" />
               </div>
             </div>
           </div>

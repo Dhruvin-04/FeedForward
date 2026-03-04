@@ -1,19 +1,49 @@
+'use client'
 import Link from 'next/link'
 import { Package, TrendingUp, Star, Plus } from 'lucide-react'
 import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
 import StatCard from '@/components/web/StatCard'
 import StatusBadge from '@/components/web/StatusBadge'
-import { fetchQuery } from 'convex/nextjs'
 import { api } from '@/convex/_generated/api'
-import { getToken } from '@/lib/auth-server'
+import { useEffect, useState } from 'react'
+import { getSocket } from '@/lib/socket'
+import { useMutation, useQuery } from 'convex/react'
 
-export default async function DonorDashboard() {
+interface ILocation{
+  latitude: number,
+  longitude: number
+}
 
-  const token = await getToken()
+export default function DonorDashboard() {
+
+  const [userLocation, setUserLocation] = useState<ILocation>({ latitude: 0, longitude: 0 })
+  const user = useQuery(api.donorProfile.getDonorProfile)
+  const listings = useQuery(api.foodList.getFoodList)
+  const updateLocation = useMutation(api.user.updateLocation)
   
-  const listings = await fetchQuery(api.foodList.getFoodList, {}, {token})
-  const donorProfile = await fetchQuery(api.donorProfile.getDonorProfile, {}, {token})
+    useEffect(()=>{
+        let socket = getSocket()
+          if(!user?.userId) return
+          if(!navigator.geolocation) return
+          const watcher = navigator.geolocation.watchPosition((position) => {
+              const { latitude, longitude } = position.coords
+              setUserLocation({ latitude, longitude })
+              const loc = {
+                  type: "Point" as const,
+                  coordinates: [longitude, latitude]
+              }
+              socket.emit('identity', {
+                  userId: user.userId,
+                  location: loc
+              })
+              // Also persist location directly to the users table
+              updateLocation({ userId: user.userId, location: loc })
+          }, (error) => {
+              console.error('Error watching position:', error)
+          }, { enableHighAccuracy: true })
+          return () => navigator.geolocation.clearWatch(watcher)
+      }, [user?.userId])
 
   const filteredListings = Array.isArray(listings) ? listings.filter(l => l !== undefined) : []
   
@@ -26,7 +56,7 @@ export default async function DonorDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar role="donor" userName={donorProfile?.businessName || "Donor"} />
+      <Navbar role="donor" userName={user?.businessName || "Donor"} />
       <div className="flex">
         <Sidebar role="donor" />
         <main className="flex-1 p-6 lg:p-8">

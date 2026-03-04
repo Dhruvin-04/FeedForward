@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 
 export const fillVolunteerInfo = mutation({
@@ -54,5 +54,19 @@ export const updateVolunteerProfile = mutation({
             console.error('Error updating volunteer profile:', error)
             throw new ConvexError('Failed to update volunteer profile')
         }
+    }
+})
+
+export const getVolunteerProfile = query({
+    args: {},
+    handler: async (ctx) => {
+        const user = await authComponent.safeGetAuthUser(ctx)
+        if (!user) {
+            throw new ConvexError("User is not authenticated")
+        }
+
+        const volunteerProfile = await ctx.db.query('volunteerProfile').collect()
+        const userVolunteerProfile = volunteerProfile.find(vp => vp.userId === user._id)
+        return userVolunteerProfile || null
     }
 })

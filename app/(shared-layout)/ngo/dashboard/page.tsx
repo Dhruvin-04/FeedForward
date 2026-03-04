@@ -1,22 +1,24 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Package, TrendingUp, MapPin, Star, Filter } from 'lucide-react'
 import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
 import StatCard from '@/components/web/StatCard'
 import FoodCard from '@/components/web/FoodCard'
-import MapPlaceholder from '@/components/web/MapPlaceholder'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
-import { Mapview } from '@/components/web/Map'
 import { getSocket } from "@/lib/socket";
-import { Geo } from "next/font/google";
-import GeoUpdater from "@/components/web/GeoUpdater";
+import type { LiveLocation } from '@/components/web/LiveMap';
 
-const Map = dynamic(
-  () => import("../../../../components/web/Map").then((component) => component.Mapview),
+interface ILocation{
+  latitude: number,
+  longitude: number
+}
+
+const LiveMap = dynamic(
+  () => import('@/components/web/LiveMap'),
   { ssr: false }
 );
 
@@ -30,9 +32,13 @@ export default function NGODashboard() {
 
   const user = useQuery(api.ngoProfile.getNgoProfile)
   const listings = useQuery(api.ngoProfile.getAvailableFood)
+  const updateLocation = useMutation(api.user.updateLocation)
   const availableListings = Array.isArray(listings) ? listings.filter(l => l.status === 'available') : []
-    
 
+  // Query ALL active user locations (donors, NGOs, volunteers) — reactive
+  const allActiveLocations = useQuery(api.user.getAllActiveLocations)
+  
+  
   // Client-side filters: quantity and time
   const filteredListings = availableListings.filter((listing) => {
     const qty = typeof listing.quantity === 'number' ? listing.quantity : Number(listing.quantity) || 0
@@ -74,6 +80,32 @@ export default function NGODashboard() {
   const mapRef = useRef<HTMLDivElement | null>(null)
   const [isFixedMap, setIsFixedMap] = useState(false)
 
+  
+  const [userLocation, setUserLocation] = useState<ILocation>({ latitude: 0, longitude: 0 })
+
+  useEffect(()=>{
+      let socket = getSocket()
+        if(!user?.userId) return
+        if(!navigator.geolocation) return
+        const watcher = navigator.geolocation.watchPosition((position) => {
+            const { latitude, longitude } = position.coords
+            setUserLocation({ latitude, longitude })
+            const loc = {
+                type: "Point" as const,
+                coordinates: [longitude, latitude]
+            }
+            socket.emit('identity', {
+                userId: user.userId,
+                location: loc
+            })
+            // Also persist location directly to the users table
+            updateLocation({ userId: user.userId, location: loc })
+        }, (error) => {
+            console.error('Error watching position:', error)
+        }, { enableHighAccuracy: true })
+        return () => navigator.geolocation.clearWatch(watcher)
+    }, [user?.userId])
+
   useEffect(() => {
     const onScroll = () => {
       if (typeof window === 'undefined') return
@@ -114,20 +146,51 @@ export default function NGODashboard() {
     console.log('Viewing map for:', location)
   }
 
-   const locations = [
-    { id: "550e8400-e29b-41d4-a716-446655440000", lat: 19.293509, lng: 73.060699 },
-    { id: "550e8400-e29b-41d4-a716-446655440013", lat: 18.9772, lng: 72.7350 },
-    { id: "550e8400-e29b-41d4-a716-446655440014", lat: 18.9674, lng: 72.8650 },
-    { id: "550e8400-e29b-41d4-a716-446655440015", lat: 18.9764, lng: 72.8300 },
-    { id: "550e8400-e29b-41d4-a716-446655440016", lat: 18.8774, lng: 72.8310 },
-    { id: "550e8400-e29b-41d4-a716-446655440017", lat: 18.9574, lng: 72.9750 },
-    { id: "550e8400-e29b-41d4-a716-446655440018", lat: 18.9743, lng: 72.0350 },
-  ];
+   // Build LiveMap locations from all active user locations
+  const liveLocations = useMemo<LiveLocation[]>(() => {
+    const locs: LiveLocation[] = []
+
+    // Add NGO's own location (freshest from browser geolocation)
+    if (userLocation.latitude !== 0 || userLocation.longitude !== 0) {
+      locs.push({
+        userId: user?.userId ?? 'self',
+        lat: userLocation.latitude,
+        lng: userLocation.longitude,
+        role: 'ngo',
+        label: 'You',
+      })
+    }
+
+    // Add all other users with locations from the DB
+    if (allActiveLocations) {
+      for (const u of allActiveLocations) {
+        if (u.userId === user?.userId) continue
+        locs.push({
+          userId: u.userId,
+          lat: u.location.coordinates[1],
+          lng: u.location.coordinates[0],
+          role: u.role,
+        })
+      }
+    }
+
+    return locs
+  }, [userLocation, allActiveLocations, user?.userId])
+
+  // Compute a sensible map center
+  const mapCenter = useMemo(() => {
+    if (userLocation.latitude !== 0 || userLocation.longitude !== 0) {
+      return { lat: userLocation.latitude, lng: userLocation.longitude }
+    }
+    if (liveLocations.length > 0) {
+      return { lat: liveLocations[0].lat, lng: liveLocations[0].lng }
+    }
+    return { lat: 18.9774, lng: 72.8350 } // fallback
+  }, [userLocation, liveLocations])
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar role="ngo" userName={user?.organizationName || "My Organization"} />
-      <GeoUpdater userId={user?.userId || ''} />
       <div className="flex">
         <Sidebar role="ngo" />
         <main className="flex-1 p-6 lg:p-8">
@@ -235,13 +298,12 @@ export default function NGODashboard() {
                 </div>
               </div>
 
-              {/* Map Preview */}
+              {/* Live Map */}
               <div className="lg:col-span-1">
                 <div className="lg:relative">
                   <div ref={mapRef} className={`lg:sticky lg:top-24 p-6 ${isFixedMap ? 'invisible' : ''}`}>
-                    <h2 className="text-xl font-semibold mb-4">Map View</h2>
-                    <Map center={{ lng: 72.8350, lat: 18.9774 }} locations={locations}/>
-                    {/* <MapPlaceholder location="Food listings nearby" height={filteredListings.length > 0 ? 'h-80' : 'h-56'} /> */}
+                    <h2 className="text-xl font-semibold mb-4">Live Map</h2>
+                    <LiveMap locations={liveLocations} center={mapCenter} height="h-80" />
                   </div>
                 </div>
               </div>
@@ -251,9 +313,8 @@ export default function NGODashboard() {
                 <div className="fixed right-6 bottom-6 z-50 hidden lg:block">
                   <div className="w-95 rounded-lg overflow-hidden">
                     <div className="p-4">
-                      <h2 className="text-lg font-semibold mb-2">Map View</h2>
-                      <Map center={{ lng: 72.8350, lat: 18.9774 }} locations={locations}/>
-                      {/* <MapPlaceholder location="Food listings nearby" height={filteredListings.length > 0 ? 'h-80' : 'h-56'} /> */}
+                      <h2 className="text-lg font-semibold mb-2">Live Map</h2>
+                      <LiveMap locations={liveLocations} center={mapCenter} height="h-72" />
                     </div>
                   </div>
                 </div>
