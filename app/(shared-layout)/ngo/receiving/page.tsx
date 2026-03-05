@@ -1,64 +1,80 @@
 'use client'
 
-import { useState } from 'react'
-import { Package, User, Clock, MapPin, CheckCircle2 } from 'lucide-react'
-import { getPickupsByNGO, mockPickups } from '@/lib/mockData'
+import { useState, useEffect, useMemo } from 'react'
+import { Package } from 'lucide-react'
 import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
-import StatusBadge from '@/components/web/StatusBadge'
-import MapPlaceholder from '@/components/web/MapPlaceholder'
-import Timeline from '@/components/web/Timeline'
-import RatingStars from '@/components/web/RatingStars'
+import ReceivingCard from '@/components/web/ReceivingCard'
+import MapTrackingModal from '@/components/web/MapTrackingModal'
 import { api } from '@/convex/_generated/api'
-import { useQuery } from 'convex/react'
+import { useQuery, useMutation } from 'convex/react'
+import { getSocket } from '@/lib/socket'
 
 export default function NGOReceivingPage() {
-
   const user = useQuery(api.ngoProfile.getNgoProfile)
+  const ngoPickups = useQuery(api.pickups.getNgoPickups)
+  const updateLocation = useMutation(api.user.updateLocation)
+  const allActiveLocations = useQuery(api.user.getAllActiveLocations)
 
-  const ngoId = '2' // Mock NGO ID
-  const pickups = getPickupsByNGO(ngoId)
-  const activePickup = pickups.find(p => p.status !== 'delivered')
+  const [userLocation, setUserLocation] = useState({ latitude: 0, longitude: 0 })
+  const [mapModalOpen, setMapModalOpen] = useState(false)
+  const [trackingItem, setTrackingItem] = useState<string | null>(null)
 
-  const [rating, setRating] = useState(5)
-  const [comment, setComment] = useState('')
+  // Track NGO location
+  useEffect(() => {
+    if (!user?.userId || !navigator.geolocation) return
+    const socket = getSocket()
+    const watcher = navigator.geolocation.watchPosition((pos) => {
+      const { latitude, longitude } = pos.coords
+      setUserLocation({ latitude, longitude })
+      const loc = { type: "Point" as const, coordinates: [longitude, latitude] }
+      socket.emit('identity', { userId: user.userId, location: loc })
+      updateLocation({ userId: user.userId, location: loc })
+    }, undefined, { enableHighAccuracy: true })
+    return () => navigator.geolocation.clearWatch(watcher)
+  }, [user?.userId])
 
-  const handleConfirmReceived = () => {
-    // Mock confirm action
-    console.log('Food received confirmed')
+  // Filter active receiving items (not delivered)
+  const activeItems = useMemo(() => {
+    if (!Array.isArray(ngoPickups)) return []
+    return ngoPickups.filter(p => p.status !== 'delivered')
+  }, [ngoPickups])
+
+  // Get mock coordinates for map tracking
+  const getTrackingLocations = (pickupId: string) => {
+    const pickup = activeItems.find(p => p._id === pickupId)
+    if (!pickup) return {}
+
+    // Use NGO's own location
+    const ngoLoc = userLocation.latitude !== 0
+      ? { lat: userLocation.latitude, lng: userLocation.longitude, label: 'NGO (You)' }
+      : { lat: 18.9774, lng: 72.835, label: 'NGO (You)' }
+
+    // Try to find donor location from active user locations
+    const donorUser = allActiveLocations?.find(u => u.userId === pickup.donorId)
+    const donorLoc = donorUser?.location
+      ? { lat: donorUser.location.coordinates[1], lng: donorUser.location.coordinates[0], label: pickup.donorName }
+      : { lat: ngoLoc.lat + 0.015, lng: ngoLoc.lng + 0.01, label: pickup.donorName }
+
+    // Try to find volunteer location
+    let volunteerLoc = undefined
+    if (pickup.volunteerId && pickup.status !== 'pending') {
+      const volUser = allActiveLocations?.find(u => u.userId === pickup.volunteerId)
+      volunteerLoc = volUser?.location
+        ? { lat: volUser.location.coordinates[1], lng: volUser.location.coordinates[0], label: pickup.volunteerName ?? 'Volunteer' }
+        : { lat: (ngoLoc.lat + donorLoc.lat) / 2, lng: (ngoLoc.lng + donorLoc.lng) / 2, label: pickup.volunteerName ?? 'Volunteer' }
+    }
+
+    return { donorLoc, ngoLoc, volunteerLoc }
   }
 
-  const handleSubmitRating = () => {
-    // Mock rating submission
-    console.log('Rating submitted:', rating, comment)
+  const handleTrackMap = (pickupId: string) => {
+    setTrackingItem(pickupId)
+    setMapModalOpen(true)
   }
 
-  if (!activePickup) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar role="ngo" userName="Hope Foundation" />
-        <div className="flex">
-          <Sidebar role="ngo" />
-          <main className="flex-1 p-6 lg:p-8">
-            <div className="max-w-4xl mx-auto">
-              <div className="card text-center py-12">
-                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h2 className="text-xl font-semibold mb-2">No Active Pickups</h2>
-                <p className="text-gray-600">You don't have any food being delivered at the moment.</p>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-    )
-  }
-
-  const timelineItems = [
-    { label: 'Food Reserved', time: new Date(activePickup.assignedAt).toLocaleString(), completed: true },
-    { label: 'Volunteer Assigned', time: new Date(activePickup.assignedAt).toLocaleString(), completed: true },
-    { label: 'Food Picked Up', time: activePickup.pickedAt ? new Date(activePickup.pickedAt).toLocaleString() : undefined, completed: !!activePickup.pickedAt },
-    { label: 'Food Delivered', time: activePickup.deliveredAt ? new Date(activePickup.deliveredAt).toLocaleString() : undefined, completed: !!activePickup.deliveredAt },
-  ]
+  const trackingPickup = activeItems.find(p => p._id === trackingItem)
+  const trackingLocs = trackingItem ? getTrackingLocations(trackingItem) : {}
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -66,140 +82,67 @@ export default function NGOReceivingPage() {
       <div className="flex">
         <Sidebar role="ngo" />
         <main className="flex-1 p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-900 mb-6">Receiving Food</h1>
+          <div className="max-w-5xl mx-auto">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900">Receiving</h1>
+              <p className="text-gray-500 mt-1">Track your accepted food items and deliveries</p>
+            </div>
 
-            <div className='flex justify-between items-center'>
-              {/* Reserved Food Details */}
-              <div className="card mb-6 w-1/3">
-                <div className="flex items-start justify-between mb-4">
-                  <h2 className="text-xl font-semibold">Reserved Food</h2>
-                  <StatusBadge status={activePickup.status} />
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <Package className="h-5 w-5 text-gray-400 mr-3 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Food Listing ID: {activePickup.foodListingId}</p>
-                      <p className="text-sm text-gray-600">From: {activePickup.donorName}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start">
-                    <User className="h-5 w-5 text-gray-400 mr-3 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Volunteer: {activePickup.volunteerName}</p>
-                      <p className="text-sm text-gray-600">Pickup Code: {activePickup.pickupCode}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start">
-                    <MapPin className="h-5 w-5 text-gray-400 mr-3 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Pickup Location</p>
-                      <p className="text-sm text-gray-600">{activePickup.donorLocation}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start">
-                    <MapPin className="h-5 w-5 text-gray-400 mr-3 mt-1" />
-                    <div>
-                      <p className="font-medium text-gray-900">Delivery Location</p>
-                      <p className="text-sm text-gray-600">{activePickup.ngoLocation}</p>
-                    </div>
-                  </div>
-
-                  {activePickup.pickedAt && (
-                    <div className="flex items-start">
-                      <Clock className="h-5 w-5 text-gray-400 mr-3 mt-1" />
-                      <div>
-                        <p className="font-medium text-gray-900">Estimated Arrival</p>
-                        <p className="text-sm text-gray-600">
-                          {new Date(new Date(activePickup.pickedAt).getTime() + 45 * 60000).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            {/* Summary bar */}
+            <div className="flex gap-4 mb-6">
+              <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm">
+                <span className="font-semibold text-amber-700">
+                  {activeItems.filter(i => i.status === 'pending').length}
+                </span>
+                <span className="text-amber-600 ml-1">Pending</span>
               </div>
-
-              {/* Timeline */}
-              <div className="card mb-6 w-1/3">
-                <h2 className="text-xl font-semibold mb-4">Delivery Timeline</h2>
-                <Timeline items={timelineItems} />
+              <div className="px-4 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm">
+                <span className="font-semibold text-purple-700">
+                  {activeItems.filter(i => i.status === 'assigned').length}
+                </span>
+                <span className="text-purple-600 ml-1">Assigned</span>
+              </div>
+              <div className="px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                <span className="font-semibold text-yellow-700">
+                  {activeItems.filter(i => i.status === 'picked_up' || i.status === 'on_the_way').length}
+                </span>
+                <span className="text-yellow-600 ml-1">In Transit</span>
               </div>
             </div>
 
-            {/* Map */}
-            <div className="card mb-6">
-              <h2 className="text-xl font-semibold mb-4">Route Map</h2>
-              <MapPlaceholder location={`${activePickup.donorLocation} → ${activePickup.ngoLocation}`} height="h-64" />
-            </div>
-
-            {/* Confirm Received */}
-            {activePickup.status === 'picked' && (
-              <div className="card mb-6">
-                <h2 className="text-xl font-semibold mb-4">Confirm Receipt</h2>
-                <button
-                  onClick={handleConfirmReceived}
-                  className="btn-primary w-full inline-flex items-center justify-center"
-                >
-                  <CheckCircle2 className="h-5 w-5 mr-2" />
-                  Confirm Received
-                </button>
+            {/* Receiving Cards */}
+            {activeItems.length > 0 ? (
+              <div className="space-y-4">
+                {activeItems.map((item) => (
+                  <ReceivingCard
+                    key={item._id}
+                    item={item}
+                    onTrackMap={() => handleTrackMap(item._id)}
+                  />
+                ))}
               </div>
-            )}
-
-            {/* Rating Form */}
-            {activePickup.status === 'delivered' && !activePickup.rating && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-4">Rate Volunteer</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          onClick={() => setRating(star)}
-                          className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span className="ml-2 text-sm text-gray-600">{rating} / 5</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-2">
-                      Comment (optional)
-                    </label>
-                    <textarea
-                      id="comment"
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Share your experience..."
-                    />
-                  </div>
-                  <button onClick={handleSubmitRating} className="btn-primary">
-                    Submit Rating
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {activePickup.rating && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-2">Your Rating</h2>
-                <RatingStars rating={activePickup.rating} showValue />
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 text-center py-16">
+                <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold mb-2">No Active Receiving</h2>
+                <p className="text-gray-600">You don&apos;t have any food being delivered at the moment.</p>
+                <p className="text-gray-500 text-sm mt-1">Accept food from the Dashboard to see items here.</p>
               </div>
             )}
           </div>
         </main>
       </div>
+
+      {/* Map Tracking Modal */}
+      <MapTrackingModal
+        isOpen={mapModalOpen}
+        onClose={() => { setMapModalOpen(false); setTrackingItem(null) }}
+        donorLocation={trackingLocs.donorLoc}
+        ngoLocation={trackingLocs.ngoLoc}
+        volunteerLocation={trackingLocs.volunteerLoc}
+        foodName={trackingPickup?.foodName ?? ''}
+        status={trackingPickup?.status ?? ''}
+      />
     </div>
   )
 }

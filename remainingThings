@@ -4,17 +4,35 @@ Donor -- after the food delievered update the foodlist status accordingly;
         new section for delievered food;
         rating
 
-Ngos -- Map integration;
-        filter with distances;
+Ngos -- filter with distances;
         nearby donors, trust score, meals recieved;
         accept food,
-        if have own volunteer then directly no card display on volunteer dashboard;
+        if have own volunteer then directly, no card display on volunteer dashboard;
         else display, generate a pickup code, sent to donor;
 
         Recieving section on sidebar;
 
-Volunteer -- Map, food cards(assigned and delievered), 4 top tabs
+Volunteer -- food cards(assigned and delievered), 4 top tabs
 
             view on map feature, 
             can only see cards on recieving tab if and only if accepted by an nearby ngo;
             accept food, details gets taken by ngo, assigns a pickup code; shows it to the donor to verify;
+
+
+workflow:
+
+NGO Dashboard:
+        NGO accept food and fill their details;
+        if they have their own volunteer, then fill their volunteer details, else the accepted food goes to pending state in the recieving tab in sidebar till other volunteers accepts it, and the card of that food item gets removed from the dashboard.
+        if accepted by a volunteer, state goes to assigned.
+        can track the food item on the map, having the details of reseved food, and deleivery timeline updation.
+
+Volunteer Dashboard:
+        get to see the food cards in the live pickups tab on sidebar which are accepted by the nearby NGO's,
+        accept food -> details filling -> get pickup code which was first generated on the ngo's dashboard and can download the detail_file
+        once get done by user, a card is shown in the dashboard, by clicking on it gets the same details that was downloaded before(fully detailed information)
+        volunteer shows the pickup code to the donor and get the food items which are then delievered to NGO;
+        and side by side delievery status in ngo and volunteer and donor dashboards gets updated
+
+Donor DashBoard:
+        accordingly when the food is deleivered, the meal served gets updates on the dashboard, active foodlisting gets updates, updates the food status to delievered. gets new section of food served on the sidebar which shows the food deleiverd by the donor till now.

@@ -59,10 +59,17 @@ export default defineSchema({
     pickups: defineTable({
         foodListingId: v.string(),
         donorId: v.string(),
-        volunteerId: v.string(),
-        volunteerName: v.string(),
+        ngoId: v.string(),
+        ngoName: v.string(),
+        ngoPhone: v.string(),
+        ngoContactPerson: v.string(),
+        ngoNotes: v.optional(v.string()),
+        volunteerType: v.string(), // "ngo" | "platform"
+        volunteerId: v.optional(v.string()),
+        volunteerName: v.optional(v.string()),
+        volunteerPhone: v.optional(v.string()),
         pickupCode: v.optional(v.string()),
-        status: v.string(), // pending, assigned, picked, delivered
+        status: v.string(), // pending, assigned, picked_up, on_the_way, delivered
         createdAt: v.string(),
         assignedAt: v.optional(v.string()),
         pickedAt: v.optional(v.string()),

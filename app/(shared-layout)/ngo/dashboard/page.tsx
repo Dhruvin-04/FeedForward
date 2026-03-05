@@ -7,10 +7,13 @@ import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
 import StatCard from '@/components/web/StatCard'
 import FoodCard from '@/components/web/FoodCard'
+import AcceptFoodModal, { AcceptFoodFormData } from '@/components/web/AcceptFoodModal'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import { getSocket } from "@/lib/socket";
+import { toast } from 'sonner'
 import type { LiveLocation } from '@/components/web/LiveMap';
+import type { FoodListing } from '@/lib/mockData'
 
 interface ILocation{
   latitude: number,
@@ -32,8 +35,15 @@ export default function NGODashboard() {
 
   const user = useQuery(api.ngoProfile.getNgoProfile)
   const listings = useQuery(api.ngoProfile.getAvailableFood)
+  const ngoPickups = useQuery(api.pickups.getNgoPickups)
   const updateLocation = useMutation(api.user.updateLocation)
+  const ngoAcceptFood = useMutation(api.pickups.ngoAcceptFood)
   const availableListings = Array.isArray(listings) ? listings.filter(l => l.status === 'available') : []
+
+  // Modal state
+  const [acceptModalOpen, setAcceptModalOpen] = useState(false)
+  const [selectedListing, setSelectedListing] = useState<FoodListing | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Query ALL active user locations (donors, NGOs, volunteers) — reactive
   const allActiveLocations = useQuery(api.user.getAllActiveLocations)
@@ -129,16 +139,42 @@ export default function NGODashboard() {
     }
   }, [])
 
-  // const stats = {
-  //   mealsReceived: mockFoodListings.filter(l => l.ngoId === '2' && l.status === 'delivered').reduce((sum, l) => sum + l.quantity, 0),
-  //   activeRequests: mockFoodListings.filter(l => l.ngoId === '2' && (l.status === 'reserved' || l.status === 'picked')).length,
-  //   nearbyDonors: new Set(mockFoodListings.map(l => l.donorId)).size,
-  //   trustScore: 4.9,
-  // }
+  // Compute stats from actual pickups
+  const activeReceiving = Array.isArray(ngoPickups) ? ngoPickups.filter(p => p.status !== 'delivered').length : 0
+  const mealsReceived = Array.isArray(ngoPickups) ? ngoPickups.filter(p => p.status === 'delivered').reduce((sum, p) => sum + (p.quantity ?? 0), 0) : 0
 
-  const handleAccept = (listingId: string) => {
-    // Mock accept action
-    console.log('Accepting food listing:', listingId)
+  const handleAccept = (listing: FoodListing) => {
+    setSelectedListing(listing)
+    setAcceptModalOpen(true)
+  }
+
+  const handleSubmitAccept = async (data: AcceptFoodFormData) => {
+    if (!selectedListing) return
+    setIsSubmitting(true)
+    try {
+      await ngoAcceptFood({
+        foodListingId: selectedListing._id,
+        donorId: selectedListing.donorId,
+        contactPerson: data.contactPerson,
+        phone: data.phone,
+        organizationName: data.organizationName,
+        pickupNotes: data.pickupNotes || undefined,
+        volunteerType: data.volunteerType,
+        volunteerName: data.volunteerType === 'ngo' ? data.volunteerName : undefined,
+        volunteerPhone: data.volunteerType === 'ngo' ? data.volunteerPhone : undefined,
+      })
+      toast.success(
+        data.volunteerType === 'ngo'
+          ? 'Food accepted! Your volunteer has been assigned.'
+          : 'Food accepted! Waiting for a platform volunteer.'
+      )
+      setAcceptModalOpen(false)
+      setSelectedListing(null)
+    } catch {
+      toast.error('Failed to accept food. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleViewMap = (location: string) => {
@@ -201,13 +237,13 @@ export default function NGODashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <StatCard
                 title="Meals Received"
-                value='0'
+                value={mealsReceived.toString()}
                 icon={Package}
                 iconColor="primary"
               />
               <StatCard
-                title="Active Requests"
-                value={availableListings.length.toString()}
+                title="Active Receiving"
+                value={activeReceiving.toString()}
                 icon={TrendingUp}
                 iconColor="secondary"
               />
@@ -285,7 +321,7 @@ export default function NGODashboard() {
                         key={listing._id}
                         listing={listing}
                         showActions
-                        onAccept={() => handleAccept(listing._id)}
+                        onAccept={() => handleAccept(listing as unknown as FoodListing)}
                         onViewMap={() => handleViewMap(listing.location)}
                       />
                     ))
@@ -323,6 +359,16 @@ export default function NGODashboard() {
           </div>
         </main>
       </div>
+
+      {/* Accept Food Modal */}
+      <AcceptFoodModal
+        isOpen={acceptModalOpen}
+        onClose={() => { setAcceptModalOpen(false); setSelectedListing(null) }}
+        onSubmit={handleSubmitAccept}
+        foodName={selectedListing?.foodName ?? ''}
+        defaultOrgName={user?.organizationName}
+        isSubmitting={isSubmitting}
+      />
     </div>
   )
 }
