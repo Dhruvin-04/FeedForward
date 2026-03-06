@@ -5,6 +5,7 @@ import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
 import StatCard from '@/components/web/StatCard'
 import StatusBadge from '@/components/web/StatusBadge'
+import DeliveryTimeline from '@/components/web/DeliveryTimeline'
 import { api } from '@/convex/_generated/api'
 import { useEffect, useState } from 'react'
 import { getSocket } from '@/lib/socket'
@@ -20,6 +21,7 @@ export default function DonorDashboard() {
   const [userLocation, setUserLocation] = useState<ILocation>({ latitude: 0, longitude: 0 })
   const user = useQuery(api.donorProfile.getDonorProfile)
   const listings = useQuery(api.foodList.getFoodList)
+  const donorPickups = useQuery(api.pickups.getDonorPickupTracking) ?? []
   const updateLocation = useMutation(api.user.updateLocation)
   
     useEffect(()=>{
@@ -122,7 +124,7 @@ export default function DonorDashboard() {
                         <td className="py-3 px-4 text-sm text-gray-700">{listing?.quantity} servings</td>
                         <td className="py-3 px-4 text-sm text-gray-700">{listing?.pickupWindow.openingTime} - {listing?.pickupWindow.closingTime}</td>
                         <td className="py-3 px-4">
-                          <StatusBadge status={ 'available'} />
+                          <StatusBadge status={listing?.status || 'available'} />
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-500">
                           {new Date(listing? listing._creationTime: '').toLocaleDateString()}
@@ -133,6 +135,36 @@ export default function DonorDashboard() {
                 </table>
               </div>
             </div>
+
+            {/* Pickup Tracking Section */}
+            {donorPickups.length > 0 && (
+              <div className="card mt-8">
+                <h2 className="text-xl font-semibold mb-4">Pickup Tracking</h2>
+                <div className="space-y-4">
+                  {donorPickups.map((pickup: any) => (
+                    <div key={pickup._id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{pickup.foodName}</h3>
+                          <p className="text-sm text-gray-500">
+                            NGO: {pickup.ngoName}
+                            {pickup.volunteerName && <> &bull; Volunteer: {pickup.volunteerName}</>}
+                          </p>
+                        </div>
+                        <StatusBadge status={pickup.status} />
+                      </div>
+                      <DeliveryTimeline
+                        status={pickup.status}
+                        createdAt={pickup.createdAt}
+                        assignedAt={pickup.assignedAt}
+                        pickedAt={pickup.pickedAt}
+                        deliveredAt={pickup.deliveredAt}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </div>

@@ -12,5 +12,5 @@ export const foodListingSchema = z.object({
     }),
     location: z.string().min(2).max(200),
     notes: z.string().max(500).optional(),
-    status: z.enum(['available', 'claimed', 'picked-up', 'delivered']).default('available'),
+    status: z.enum(['available', 'claimed', 'reserved', 'picked_up', 'delivered']).default('available'),
 })
