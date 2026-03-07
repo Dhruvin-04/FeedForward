@@ -36,3 +36,15 @@ Volunteer Dashboard:
 
 Donor DashBoard:
         accordingly when the food is deleivered, the meal served gets updates on the dashboard, active foodlisting gets updates, updates the food status to delievered. gets new section of food served on the sidebar which shows the food deleiverd by the donor till now.
+
+
+\\\\\\\\\\\\\\\\\\\\\\\\
+
+donor:
+        pickup tracking if completed, remove it from there, just show pending trackings.
+        profile in the sidebar.
+        the pickup code generated when the volunteer accepts the food, that pickup code has to be shown in the pickup tracking card.
+ngo: 
+        pickup tracking if completed, remove it from there, just show pending trackings.
+
+        

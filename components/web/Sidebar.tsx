@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Plus, Package, Home, History, UserCircle, CheckCircle } from 'lucide-react'
+import { LayoutDashboard, Plus, Package, Home, History, UserCircle, CheckCircle, Users } from 'lucide-react'
 import { UserRole } from '@/lib/mockData'
 
 
@@ -18,6 +18,7 @@ const menuItems = {
   ngo: [
     { href: '/ngo/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/ngo/receiving', label: 'Receiving', icon: Package },
+    { href: '/ngo/our-volunteer-pickups', label: 'Our Volunteer Pickups', icon: Users },
     { href: '/ngo/history', label: 'History', icon: History },
     { href: '/ngo/profile', label: 'Profile', icon: UserCircle },
   ],

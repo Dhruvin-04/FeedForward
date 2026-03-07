@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Building2, Phone, User, FileText, Truck, Users } from 'lucide-react'
 import { Button } from '../ui/button'
 
@@ -40,6 +40,12 @@ export default function AcceptFoodModal({
     volunteerName: '',
     volunteerPhone: '',
   })
+
+  useEffect(() => {
+    if (defaultOrgName) {
+      setForm((prev) => ({ ...prev, organizationName: defaultOrgName }))
+    }
+  }, [defaultOrgName])
 
   const [errors, setErrors] = useState<Partial<Record<keyof AcceptFoodFormData, string>>>({})
 

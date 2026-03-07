@@ -572,3 +572,126 @@ export const getDonorPickupTracking = query({
         return enriched
     }
 })
+
+// Get NGO's own-volunteer pickups (volunteerType === 'ngo', active statuses)
+export const getNgoOwnVolunteerPickups = query({
+    args: {},
+    handler: async (ctx) => {
+        const user = await authComponent.safeGetAuthUser(ctx)
+        if (!user) {
+            throw new ConvexError('Unauthorized')
+        }
+
+        const pickups = await ctx.db.query('pickups').collect()
+        const ownVolPickups = pickups.filter(
+            (p) => p.ngoId === user._id && p.volunteerType === 'ngo' && ['assigned', 'picked_up'].includes(p.status)
+        )
+
+        const enriched = await Promise.all(
+            ownVolPickups.map(async (pickup) => {
+                const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+                const donorProfiles = await ctx.db.query('donorProfile').collect()
+                const donorProfile = donorProfiles.find(dp => dp.userId === pickup.donorId)
+                const ngoProfiles = await ctx.db.query('ngoProfile').collect()
+                const ngoProfile = ngoProfiles.find(np => np.userId === pickup.ngoId)
+
+                return {
+                    ...pickup,
+                    foodName: foodListing?.foodName ?? 'Unknown',
+                    businessName: foodListing?.businessName ?? 'Unknown',
+                    donorName: foodListing?.donorName ?? 'Unknown',
+                    quantity: foodListing?.quantity,
+                    category: foodListing?.category ?? '',
+                    pickupLocation: foodListing?.location ?? '',
+                    pickupWindow: foodListing?.pickupWindow,
+                    donorAddress: donorProfile?.address ?? foodListing?.location ?? '',
+                    ngoAddress: ngoProfile?.address ?? '',
+                }
+            })
+        )
+
+        return enriched
+    }
+})
+
+// NGO confirms their own volunteer has picked up food from donor
+export const ngoConfirmPickup = mutation({
+    args: {
+        pickupId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await authComponent.safeGetAuthUser(ctx)
+        if (!user) {
+            throw new ConvexError('Unauthorized')
+        }
+
+        const pickup = await ctx.db.get(args.pickupId as Id<"pickups">)
+        if (!pickup) {
+            throw new ConvexError('Pickup not found')
+        }
+        if (pickup.ngoId !== user._id) {
+            throw new ConvexError('Only the owning NGO can update this pickup')
+        }
+        if (pickup.volunteerType !== 'ngo') {
+            throw new ConvexError('This action is only for NGO volunteer pickups')
+        }
+        if (pickup.status !== 'assigned') {
+            throw new ConvexError('Pickup must be in assigned status to confirm')
+        }
+
+        await ctx.db.patch(args.pickupId as Id<"pickups">, {
+            status: 'picked_up',
+            pickedAt: new Date().toISOString(),
+        })
+
+        const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+        if (foodListing) {
+            await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+                status: 'picked_up',
+            })
+        }
+
+        return { success: true }
+    }
+})
+
+// NGO marks their own volunteer's delivery as completed
+export const ngoMarkDelivered = mutation({
+    args: {
+        pickupId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await authComponent.safeGetAuthUser(ctx)
+        if (!user) {
+            throw new ConvexError('Unauthorized')
+        }
+
+        const pickup = await ctx.db.get(args.pickupId as Id<"pickups">)
+        if (!pickup) {
+            throw new ConvexError('Pickup not found')
+        }
+        if (pickup.ngoId !== user._id) {
+            throw new ConvexError('Only the owning NGO can update this pickup')
+        }
+        if (pickup.volunteerType !== 'ngo') {
+            throw new ConvexError('This action is only for NGO volunteer pickups')
+        }
+        if (pickup.status !== 'picked_up') {
+            throw new ConvexError('Pickup must be picked up before marking delivered')
+        }
+
+        await ctx.db.patch(args.pickupId as Id<"pickups">, {
+            status: 'delivered',
+            deliveredAt: new Date().toISOString(),
+        })
+
+        const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+        if (foodListing) {
+            await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+                status: 'delivered',
+            })
+        }
+
+        return { success: true }
+    }
+})

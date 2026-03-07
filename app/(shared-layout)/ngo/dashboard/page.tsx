@@ -20,6 +20,17 @@ interface ILocation{
   longitude: number
 }
 
+// Haversine distance in km between two lat/lng points
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 const LiveMap = dynamic(
   () => import('@/components/web/LiveMap'),
   { ssr: false }
@@ -47,11 +58,40 @@ export default function NGODashboard() {
 
   // Query ALL active user locations (donors, NGOs, volunteers) — reactive
   const allActiveLocations = useQuery(api.user.getAllActiveLocations)
-  
-  
-  // Client-side filters: quantity and time
+
+  const [userLocation, setUserLocation] = useState<ILocation>({ latitude: 0, longitude: 0 })
+
+  // Build a map from donorId → distance (km) using active locations
+  const donorDistanceMap = useMemo(() => {
+    const map = new Map<string, number>()
+    if (userLocation.latitude === 0 && userLocation.longitude === 0) return map
+    if (!allActiveLocations) return map
+    for (const loc of allActiveLocations) {
+      if (loc.role === 'donor' && loc.location) {
+        const dist = haversineKm(
+          userLocation.latitude, userLocation.longitude,
+          loc.location.coordinates[1], loc.location.coordinates[0]
+        )
+        map.set(loc.userId, dist)
+      }
+    }
+    return map
+  }, [userLocation, allActiveLocations])
+
+  // Client-side filters: distance, quantity and time
   const filteredListings = availableListings.filter((listing) => {
     const qty = typeof listing.quantity === 'number' ? listing.quantity : Number(listing.quantity) || 0
+
+    // Distance filter
+    const distMatch = (() => {
+      if (filter.distance === 'all') return true
+      const dist = donorDistanceMap.get(listing.donorId)
+      if (dist === undefined) return true // no location data, include by default
+      if (filter.distance === '<5km') return dist < 5
+      if (filter.distance === '5-10km') return dist >= 5 && dist <= 10
+      if (filter.distance === '>10km') return dist > 10
+      return true
+    })()
 
     const qtyMatch = (() => {
       if (filter.quantity === 'all') return true
@@ -84,14 +124,11 @@ export default function NGODashboard() {
       return true
     })()
 
-    return qtyMatch && timeMatch
+    return distMatch && qtyMatch && timeMatch
   })
 
   const mapRef = useRef<HTMLDivElement | null>(null)
   const [isFixedMap, setIsFixedMap] = useState(false)
-
-  
-  const [userLocation, setUserLocation] = useState<ILocation>({ latitude: 0, longitude: 0 })
 
   useEffect(()=>{
       let socket = getSocket()
@@ -142,6 +179,11 @@ export default function NGODashboard() {
   // Compute stats from actual pickups
   const activeReceiving = Array.isArray(ngoPickups) ? ngoPickups.filter(p => p.status !== 'delivered').length : 0
   const mealsReceived = Array.isArray(ngoPickups) ? ngoPickups.filter(p => p.status === 'delivered').reduce((sum, p) => sum + (p.quantity ?? 0), 0) : 0
+  const nearbyDonorCount = useMemo(() => {
+    let count = 0
+    donorDistanceMap.forEach((dist) => { if (dist <= 10) count++ })
+    return count
+  }, [donorDistanceMap])
 
   const handleAccept = (listing: FoodListing) => {
     setSelectedListing(listing)
@@ -249,7 +291,7 @@ export default function NGODashboard() {
               />
               <StatCard
                 title="Nearby Donors"
-                value='0'
+                value={nearbyDonorCount.toString()}
                 icon={MapPin}
                 iconColor="primary"
               />
