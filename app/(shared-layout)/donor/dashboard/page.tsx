@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { Package, TrendingUp, Star, Plus } from 'lucide-react'
+import { Package, TrendingUp, Star, Plus, CheckCircle } from 'lucide-react'
 import Navbar from '@/components/web/Navbar'
 import Sidebar from '@/components/web/Sidebar'
 import StatCard from '@/components/web/StatCard'
@@ -10,6 +10,7 @@ import { api } from '@/convex/_generated/api'
 import { useEffect, useState } from 'react'
 import { getSocket } from '@/lib/socket'
 import { useMutation, useQuery } from 'convex/react'
+import { toast } from 'sonner'
 
 interface ILocation{
   latitude: number,
@@ -23,6 +24,8 @@ export default function DonorDashboard() {
   const listings = useQuery(api.foodList.getFoodList)
   const donorPickups = useQuery(api.pickups.getDonorPickupTracking) ?? []
   const updateLocation = useMutation(api.user.updateLocation)
+  const donorConfirmPickup = useMutation(api.pickups.donorConfirmPickup)
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
   
     useEffect(()=>{
         let socket = getSocket()
@@ -139,7 +142,7 @@ export default function DonorDashboard() {
             {/* Pickup Tracking Section */}
             {donorPickups.length > 0 && (
               <div className="card mt-8">
-                <h2 className="text-xl font-semibold mb-4">Pickup Tracking</h2>
+                <h2 className="text-xl font-semibold mb-4">Active Pickup Tracking</h2>
                 <div className="space-y-4">
                   {donorPickups.map((pickup: any) => (
                     <div key={pickup._id} className="border border-gray-200 rounded-lg p-4">
@@ -147,12 +150,53 @@ export default function DonorDashboard() {
                         <div>
                           <h3 className="font-semibold text-gray-900">{pickup.foodName}</h3>
                           <p className="text-sm text-gray-500">
+                            {pickup.quantity && <>{pickup.quantity} servings &bull; </>}
                             NGO: {pickup.ngoName}
                             {pickup.volunteerName && <> &bull; Volunteer: {pickup.volunteerName}</>}
                           </p>
+                          {pickup.pickupWindow && (
+                            <p className="text-sm text-gray-400 mt-0.5">
+                              Pickup: {pickup.pickupWindow.openingTime} - {pickup.pickupWindow.closingTime}
+                            </p>
+                          )}
                         </div>
                         <StatusBadge status={pickup.status} />
                       </div>
+                      {pickup.pickupCode && (
+                        <div className="mb-3 inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-md px-3 py-1.5">
+                          <span className="text-xs font-medium text-blue-600">Pickup Code:</span>
+                          <span className="text-sm font-bold tracking-widest text-blue-800">{pickup.pickupCode}</span>
+                        </div>
+                      )}
+                      {/* Donor pickup confirmation */}
+                      {(pickup.status === 'assigned' || pickup.status === 'pickup_pending') && !pickup.donorPickupConfirmed && (
+                        <div className="mb-3">
+                          {pickup.volunteerPickupConfirmed && (
+                            <p className="text-sm text-amber-600 mb-2">Volunteer has marked pickup. Please confirm that food was collected.</p>
+                          )}
+                          <button
+                            onClick={async () => {
+                              setConfirmingId(pickup._id)
+                              try {
+                                await donorConfirmPickup({ pickupId: pickup._id })
+                                toast.success('Pickup confirmed!')
+                              } catch (err: any) {
+                                toast.error(err?.data ?? 'Failed to confirm pickup')
+                              } finally {
+                                setConfirmingId(null)
+                              }
+                            }}
+                            disabled={confirmingId === pickup._id}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            {confirmingId === pickup._id ? 'Confirming...' : 'Confirm Volunteer Picked Up Food'}
+                          </button>
+                        </div>
+                      )}
+                      {pickup.donorPickupConfirmed && pickup.status === 'pickup_pending' && (
+                        <p className="text-sm text-amber-600 mb-3">Waiting for volunteer confirmation...</p>
+                      )}
                       <DeliveryTimeline
                         status={pickup.status}
                         createdAt={pickup.createdAt}

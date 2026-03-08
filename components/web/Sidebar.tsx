@@ -13,7 +13,9 @@ interface SidebarProps {
 const menuItems = {
   donor: [
     { href: '/donor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/donor/new', label: 'Post Donation', icon: Plus },
+    { href: '/donor/new', label: 'Donate Food', icon: Plus },
+    { href: '/donor/pickup-tracking', label: 'Pickup Tracking', icon: Package },
+    { href: '/donor/profile', label: 'Profile', icon: UserCircle },
   ],
   ngo: [
     { href: '/ngo/dashboard', label: 'Dashboard', icon: LayoutDashboard },

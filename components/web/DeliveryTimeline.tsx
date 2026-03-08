@@ -21,40 +21,46 @@ interface DeliveryTimelineProps {
 const STAGES = [
   { key: 'accepted', label: 'Food Accepted', icon: Package },
   { key: 'assigned', label: 'Volunteer Assigned', icon: UserCheck },
+  { key: 'pickup_pending', label: 'Pickup Confirmation', icon: MapPin },
   { key: 'picked_up', label: 'Picked Up from Donor', icon: MapPin },
-  { key: 'on_the_way', label: 'On the Way', icon: Truck },
+  { key: 'delivery_pending', label: 'Delivery Confirmation', icon: Truck },
   { key: 'delivered', label: 'Delivered', icon: PartyPopper },
 ]
 
-const STATUS_ORDER = ['pending', 'assigned', 'picked_up', 'on_the_way', 'delivered']
+const STATUS_ORDER = ['pending', 'assigned', 'pickup_pending', 'picked_up', 'delivery_pending', 'delivered']
 
 export default function DeliveryTimeline({ status, createdAt, assignedAt, pickedAt, deliveredAt }: DeliveryTimelineProps) {
   const currentIndex = STATUS_ORDER.indexOf(status)
 
   const stages: TimelineStage[] = STAGES.map((stage, i) => {
-    const stageIndex = i // maps 0=accepted(always done), 1=assigned, 2=picked_up, 3=on_the_way, 4=delivered
+    // 0=accepted(always done), 1=assigned, 2=pickup_pending, 3=picked_up, 4=delivery_pending, 5=delivered
     let completed = false
     let active = false
     let time: string | undefined
 
-    if (stageIndex === 0) {
-      // "Food Accepted" is always complete once pickup exists
+    if (i === 0) {
       completed = true
       time = createdAt
-    } else if (stageIndex === 1) {
+    } else if (i === 1) {
       completed = currentIndex >= 1
-      active = currentIndex === 0 // pending → waiting for assignment
+      active = currentIndex === 0
       time = assignedAt
-    } else if (stageIndex === 2) {
-      completed = currentIndex >= 2
-      active = currentIndex === 1
-      time = pickedAt
-    } else if (stageIndex === 3) {
+    } else if (i === 2) {
+      // pickup_pending
+      completed = currentIndex >= 3 // completed once picked_up is reached
+      active = currentIndex === 1 || currentIndex === 2
+    } else if (i === 3) {
+      // picked_up
       completed = currentIndex >= 3
       active = currentIndex === 2
-    } else if (stageIndex === 4) {
-      completed = currentIndex >= 4
-      active = currentIndex === 3
+      time = pickedAt
+    } else if (i === 4) {
+      // delivery_pending
+      completed = currentIndex >= 5
+      active = currentIndex === 3 || currentIndex === 4
+    } else if (i === 5) {
+      completed = currentIndex >= 5
+      active = currentIndex === 4
       time = deliveredAt
     }
 

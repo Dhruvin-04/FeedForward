@@ -1,6 +1,6 @@
 'use client'
 
-import { Package, MapPin, Users, UtensilsCrossed, Phone, User, Clock, Navigation } from 'lucide-react'
+import { Package, MapPin, Users, UtensilsCrossed, Phone, User, Clock, Navigation, CheckCircle } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 import DeliveryTimeline from './DeliveryTimeline'
 import { Button } from '../ui/button'
@@ -21,6 +21,10 @@ export interface ReceivingItem {
   volunteerPhone?: string
   ngoContactPerson: string
   pickupCode?: string
+  volunteerPickupConfirmed?: boolean
+  donorPickupConfirmed?: boolean
+  volunteerDeliveryConfirmed?: boolean
+  ngoDeliveryConfirmed?: boolean
   createdAt: string
   assignedAt?: string
   pickedAt?: string
@@ -30,9 +34,11 @@ export interface ReceivingItem {
 interface ReceivingCardProps {
   item: ReceivingItem
   onTrackMap?: () => void
+  onConfirmDelivery?: () => void
+  confirmingDelivery?: boolean
 }
 
-export default function ReceivingCard({ item, onTrackMap }: ReceivingCardProps) {
+export default function ReceivingCard({ item, onTrackMap, onConfirmDelivery, confirmingDelivery }: ReceivingCardProps) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       {/* Header */}
@@ -131,14 +137,35 @@ export default function ReceivingCard({ item, onTrackMap }: ReceivingCardProps) 
       </div>
 
       {/* Footer Actions */}
-      {(item.status === 'assigned' || item.status === 'picked_up' || item.status === 'on_the_way') && onTrackMap && (
-        <div className="px-5 pb-5">
+      <div className="px-5 pb-5 space-y-3">
+        {/* Delivery confirmation for NGO */}
+        {(item.status === 'picked_up' || item.status === 'delivery_pending') && !item.ngoDeliveryConfirmed && onConfirmDelivery && (
+          <div>
+            {item.volunteerDeliveryConfirmed && (
+              <p className="text-sm text-purple-600 mb-2">Volunteer has marked delivery. Please confirm food received.</p>
+            )}
+            <Button
+              onClick={onConfirmDelivery}
+              disabled={confirmingDelivery}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {confirmingDelivery ? 'Confirming...' : 'Confirm Food Received'}
+            </Button>
+          </div>
+        )}
+        {item.ngoDeliveryConfirmed && item.status === 'delivery_pending' && (
+          <p className="text-sm text-purple-600 text-center">You confirmed delivery. Waiting for volunteer confirmation...</p>
+        )}
+
+        {/* Track on Map */}
+        {(item.status === 'assigned' || item.status === 'pickup_pending' || item.status === 'picked_up' || item.status === 'delivery_pending') && onTrackMap && (
           <Button onClick={onTrackMap} variant="outline" className="w-full text-black">
             <Navigation className="h-4 w-4 mr-2" />
             Track on Map
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

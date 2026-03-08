@@ -252,38 +252,56 @@ export default function PickupDetailsPage() {
                 </Card>
 
                 {/* Action Buttons */}
-                <div className="flex gap-4">
-                  {pickup.status === 'assigned' && (
-                    <Button
-                      onClick={handleConfirmPickup}
-                      disabled={confirming}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-12"
-                    >
-                      {confirming ? (
-                        <Spinner className="h-4 w-4" />
+                <div className="flex flex-col gap-4">
+                  {/* Pickup confirmation section */}
+                  {(pickup.status === 'assigned' || pickup.status === 'pickup_pending') && (
+                    <>
+                      {pickup.volunteerPickupConfirmed ? (
+                        <div className="text-center py-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-amber-700 font-medium text-sm">You confirmed pickup. Waiting for donor confirmation...</p>
+                        </div>
                       ) : (
-                        <>
-                          <CheckCircle className="h-5 w-5 mr-2" />
-                          Confirm Pickup
-                        </>
+                        <Button
+                          onClick={handleConfirmPickup}
+                          disabled={confirming}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-12"
+                        >
+                          {confirming ? (
+                            <Spinner className="h-4 w-4" />
+                          ) : (
+                            <>
+                              <CheckCircle className="h-5 w-5 mr-2" />
+                              Confirm Pickup from Donor
+                            </>
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                    </>
                   )}
-                  {pickup.status === 'picked_up' && (
-                    <Button
-                      onClick={handleMarkDelivered}
-                      disabled={delivering}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12"
-                    >
-                      {delivering ? (
-                        <Spinner className="h-4 w-4" />
+                  {/* Delivery confirmation section */}
+                  {(pickup.status === 'picked_up' || pickup.status === 'delivery_pending') && (
+                    <>
+                      {pickup.volunteerDeliveryConfirmed ? (
+                        <div className="text-center py-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <p className="text-purple-700 font-medium text-sm">You confirmed delivery. Waiting for NGO confirmation...</p>
+                        </div>
                       ) : (
-                        <>
-                          <Truck className="h-5 w-5 mr-2" />
-                          Mark Delivered
-                        </>
+                        <Button
+                          onClick={handleMarkDelivered}
+                          disabled={delivering}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white h-12"
+                        >
+                          {delivering ? (
+                            <Spinner className="h-4 w-4" />
+                          ) : (
+                            <>
+                              <Truck className="h-5 w-5 mr-2" />
+                              Confirm Delivered to NGO
+                            </>
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                    </>
                   )}
                   {pickup.status === 'delivered' && (
                     <div className="flex-1 text-center py-4 bg-green-50 border border-green-200 rounded-lg">

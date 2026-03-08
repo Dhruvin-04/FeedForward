@@ -9,6 +9,7 @@ import MapTrackingModal from '@/components/web/MapTrackingModal'
 import { api } from '@/convex/_generated/api'
 import { useQuery, useMutation } from 'convex/react'
 import { getSocket } from '@/lib/socket'
+import { toast } from 'sonner'
 
 export default function NGOReceivingPage() {
   const user = useQuery(api.ngoProfile.getNgoProfile)
@@ -19,6 +20,8 @@ export default function NGOReceivingPage() {
   const [userLocation, setUserLocation] = useState({ latitude: 0, longitude: 0 })
   const [mapModalOpen, setMapModalOpen] = useState(false)
   const [trackingItem, setTrackingItem] = useState<string | null>(null)
+  const ngoConfirmDelivery = useMutation(api.pickups.ngoConfirmDelivery)
+  const [confirmingDeliveryId, setConfirmingDeliveryId] = useState<string | null>(null)
 
   // Track NGO location
   useEffect(() => {
@@ -104,9 +107,15 @@ export default function NGOReceivingPage() {
               </div>
               <div className="px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
                 <span className="font-semibold text-yellow-700">
-                  {activeItems.filter(i => i.status === 'picked_up' || i.status === 'on_the_way').length}
+                  {activeItems.filter(i => i.status === 'pickup_pending' || i.status === 'assigned').length}
                 </span>
-                <span className="text-yellow-600 ml-1">In Transit</span>
+                <span className="text-yellow-600 ml-1">Pickup Pending</span>
+              </div>
+              <div className="px-4 py-2 bg-orange-50 border border-orange-200 rounded-lg text-sm">
+                <span className="font-semibold text-orange-700">
+                  {activeItems.filter(i => i.status === 'picked_up' || i.status === 'delivery_pending').length}
+                </span>
+                <span className="text-orange-600 ml-1">In Transit</span>
               </div>
             </div>
 
@@ -118,6 +127,18 @@ export default function NGOReceivingPage() {
                     key={item._id}
                     item={item}
                     onTrackMap={() => handleTrackMap(item._id)}
+                    onConfirmDelivery={async () => {
+                      setConfirmingDeliveryId(item._id)
+                      try {
+                        await ngoConfirmDelivery({ pickupId: item._id })
+                        toast.success('Delivery confirmed!')
+                      } catch (err: any) {
+                        toast.error(err?.data ?? 'Failed to confirm delivery')
+                      } finally {
+                        setConfirmingDeliveryId(null)
+                      }
+                    }}
+                    confirmingDelivery={confirmingDeliveryId === item._id}
                   />
                 ))}
               </div>

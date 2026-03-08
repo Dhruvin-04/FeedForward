@@ -69,7 +69,13 @@ export default defineSchema({
         volunteerName: v.optional(v.string()),
         volunteerPhone: v.optional(v.string()),
         pickupCode: v.optional(v.string()),
-        status: v.string(), // pending, assigned, picked_up, on_the_way, delivered
+        status: v.string(), // pending, assigned, pickup_pending, picked_up, delivery_pending, delivered
+        // Two-way pickup confirmation
+        volunteerPickupConfirmed: v.optional(v.boolean()),
+        donorPickupConfirmed: v.optional(v.boolean()),
+        // Two-way delivery confirmation
+        volunteerDeliveryConfirmed: v.optional(v.boolean()),
+        ngoDeliveryConfirmed: v.optional(v.boolean()),
         createdAt: v.string(),
         assignedAt: v.optional(v.string()),
         pickedAt: v.optional(v.string()),

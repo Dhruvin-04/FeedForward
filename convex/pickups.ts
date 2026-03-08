@@ -467,7 +467,7 @@ export const assignVolunteerToFood = mutation({
     }
 })
 
-// Volunteer confirms pickup from donor
+// Volunteer confirms pickup from donor (two-way: step 1)
 export const confirmFoodPickup = mutation({
     args: {
         pickupId: v.string(),
@@ -482,31 +482,96 @@ export const confirmFoodPickup = mutation({
         if (!pickup) {
             throw new ConvexError('Pickup not found')
         }
-        if (pickup.status !== 'assigned') {
-            throw new ConvexError('Pickup must be in assigned status to confirm')
+        if (pickup.status !== 'assigned' && pickup.status !== 'pickup_pending') {
+            throw new ConvexError('Pickup must be in assigned or pickup_pending status')
         }
         if (pickup.volunteerId !== user._id) {
             throw new ConvexError('Only the assigned volunteer can confirm pickup')
         }
+        if (pickup.volunteerPickupConfirmed) {
+            throw new ConvexError('You have already confirmed pickup')
+        }
 
-        await ctx.db.patch(args.pickupId as Id<"pickups">, {
-            status: 'picked_up',
-            pickedAt: new Date().toISOString(),
-        })
+        const donorAlsoConfirmed = pickup.donorPickupConfirmed === true
 
-        // Update food listing
-        const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
-        if (foodListing) {
-            await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+        if (donorAlsoConfirmed) {
+            // Both confirmed → move to picked_up
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                volunteerPickupConfirmed: true,
                 status: 'picked_up',
+                pickedAt: new Date().toISOString(),
+            })
+            const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+            if (foodListing) {
+                await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+                    status: 'picked_up',
+                })
+            }
+        } else {
+            // Only volunteer confirmed → waiting for donor
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                volunteerPickupConfirmed: true,
+                status: 'pickup_pending',
             })
         }
 
-        return { success: true }
+        return { success: true, bothConfirmed: donorAlsoConfirmed }
     }
 })
 
-// Volunteer marks food as delivered to NGO
+// Donor confirms volunteer picked up food (two-way: step 2)
+export const donorConfirmPickup = mutation({
+    args: {
+        pickupId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await authComponent.safeGetAuthUser(ctx)
+        if (!user) {
+            throw new ConvexError('Unauthorized')
+        }
+
+        const pickup = await ctx.db.get(args.pickupId as Id<"pickups">)
+        if (!pickup) {
+            throw new ConvexError('Pickup not found')
+        }
+        if (pickup.donorId !== user._id) {
+            throw new ConvexError('Only the donor can confirm this pickup')
+        }
+        if (pickup.status !== 'assigned' && pickup.status !== 'pickup_pending') {
+            throw new ConvexError('Pickup must be in assigned or pickup_pending status')
+        }
+        if (pickup.donorPickupConfirmed) {
+            throw new ConvexError('You have already confirmed pickup')
+        }
+
+        const volunteerAlsoConfirmed = pickup.volunteerPickupConfirmed === true
+
+        if (volunteerAlsoConfirmed) {
+            // Both confirmed → move to picked_up
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                donorPickupConfirmed: true,
+                status: 'picked_up',
+                pickedAt: new Date().toISOString(),
+            })
+            const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+            if (foodListing) {
+                await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+                    status: 'picked_up',
+                })
+            }
+        } else {
+            // Only donor confirmed → waiting for volunteer
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                donorPickupConfirmed: true,
+                status: 'pickup_pending',
+            })
+        }
+
+        return { success: true, bothConfirmed: volunteerAlsoConfirmed }
+    }
+})
+
+// Volunteer confirms delivery to NGO (two-way: step 1)
 export const markFoodDelivered = mutation({
     args: {
         pickupId: v.string(),
@@ -521,31 +586,96 @@ export const markFoodDelivered = mutation({
         if (!pickup) {
             throw new ConvexError('Pickup not found')
         }
-        if (pickup.status !== 'picked_up') {
+        if (pickup.status !== 'picked_up' && pickup.status !== 'delivery_pending') {
             throw new ConvexError('Pickup must be picked up before marking delivered')
         }
         if (pickup.volunteerId !== user._id) {
             throw new ConvexError('Only the assigned volunteer can mark as delivered')
         }
+        if (pickup.volunteerDeliveryConfirmed) {
+            throw new ConvexError('You have already confirmed delivery')
+        }
 
-        await ctx.db.patch(args.pickupId as Id<"pickups">, {
-            status: 'delivered',
-            deliveredAt: new Date().toISOString(),
-        })
+        const ngoAlsoConfirmed = pickup.ngoDeliveryConfirmed === true
 
-        // Update food listing
-        const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
-        if (foodListing) {
-            await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+        if (ngoAlsoConfirmed) {
+            // Both confirmed → move to delivered
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                volunteerDeliveryConfirmed: true,
                 status: 'delivered',
+                deliveredAt: new Date().toISOString(),
+            })
+            const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+            if (foodListing) {
+                await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+                    status: 'delivered',
+                })
+            }
+        } else {
+            // Only volunteer confirmed → waiting for NGO
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                volunteerDeliveryConfirmed: true,
+                status: 'delivery_pending',
             })
         }
 
-        return { success: true }
+        return { success: true, bothConfirmed: ngoAlsoConfirmed }
     }
 })
 
-// Get donor's food listings with pickup tracking info
+// NGO confirms food received from volunteer (two-way: step 2)
+export const ngoConfirmDelivery = mutation({
+    args: {
+        pickupId: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const user = await authComponent.safeGetAuthUser(ctx)
+        if (!user) {
+            throw new ConvexError('Unauthorized')
+        }
+
+        const pickup = await ctx.db.get(args.pickupId as Id<"pickups">)
+        if (!pickup) {
+            throw new ConvexError('Pickup not found')
+        }
+        if (pickup.ngoId !== user._id) {
+            throw new ConvexError('Only the receiving NGO can confirm delivery')
+        }
+        if (pickup.status !== 'picked_up' && pickup.status !== 'delivery_pending') {
+            throw new ConvexError('Pickup must be picked up or delivery pending')
+        }
+        if (pickup.ngoDeliveryConfirmed) {
+            throw new ConvexError('You have already confirmed delivery')
+        }
+
+        const volunteerAlsoConfirmed = pickup.volunteerDeliveryConfirmed === true
+
+        if (volunteerAlsoConfirmed) {
+            // Both confirmed → move to delivered
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                ngoDeliveryConfirmed: true,
+                status: 'delivered',
+                deliveredAt: new Date().toISOString(),
+            })
+            const foodListing = await ctx.db.get(pickup.foodListingId as Id<"foodlistings">)
+            if (foodListing) {
+                await ctx.db.patch(pickup.foodListingId as Id<"foodlistings">, {
+                    status: 'delivered',
+                })
+            }
+        } else {
+            // Only NGO confirmed → waiting for volunteer
+            await ctx.db.patch(args.pickupId as Id<"pickups">, {
+                ngoDeliveryConfirmed: true,
+                status: 'delivery_pending',
+            })
+        }
+
+        return { success: true, bothConfirmed: volunteerAlsoConfirmed }
+    }
+})
+
+// Get donor's active (non-delivered) pickups with tracking info
 export const getDonorPickupTracking = query({
     args: {},
     handler: async (ctx) => {
@@ -555,7 +685,9 @@ export const getDonorPickupTracking = query({
         }
 
         const pickups = await ctx.db.query('pickups').collect()
-        const donorPickups = pickups.filter((p) => p.donorId === user._id)
+        const donorPickups = pickups.filter(
+            (p) => p.donorId === user._id && p.status !== 'delivered'
+        )
 
         const enriched = await Promise.all(
             donorPickups.map(async (pickup) => {
@@ -565,6 +697,8 @@ export const getDonorPickupTracking = query({
                     foodName: foodListing?.foodName ?? 'Unknown',
                     quantity: foodListing?.quantity,
                     category: foodListing?.category ?? '',
+                    pickupLocation: foodListing?.location ?? '',
+                    pickupWindow: foodListing?.pickupWindow,
                 }
             })
         )
@@ -584,7 +718,7 @@ export const getNgoOwnVolunteerPickups = query({
 
         const pickups = await ctx.db.query('pickups').collect()
         const ownVolPickups = pickups.filter(
-            (p) => p.ngoId === user._id && p.volunteerType === 'ngo' && ['assigned', 'picked_up'].includes(p.status)
+            (p) => p.ngoId === user._id && p.volunteerType === 'ngo' && ['assigned', 'pickup_pending', 'picked_up', 'delivery_pending'].includes(p.status)
         )
 
         const enriched = await Promise.all(
