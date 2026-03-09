@@ -45,7 +45,7 @@ export default function ContactPage() {
             `}</style>
 
             {/* Header */}
-            <section className="bg-gradient-to-br from-orange-50 via-white to-green-50 py-16 px-6 text-center">
+            <section className="bg-linear-to-br from-orange-50 via-white to-green-50 py-16 px-6 text-center">
                 <h1 className="font-berkshire text-5xl text-gray-900">Get in Touch</h1>
                 <p className="mt-4 text-lg text-gray-600 max-w-xl mx-auto">
                     Have questions or want to partner with us? We&apos;d love to hear from you.
