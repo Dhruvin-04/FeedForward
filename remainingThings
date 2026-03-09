@@ -2,7 +2,3 @@ about page, contact page, accesible from nav bar + footer
 if user logged in, home page updates
         remove donate and find food button on heero section
         and no activity after clicking become a donor or join as ngo buttons
-
-volunteer can't confirm the pickup from donor by alone, the donor also have to confirm the pickup done by the volunteer
-and same with ngo, volunteer can't confirm the deliever to the ngo donor by alone, the ngo also have to confirm the deleiverd done by the volunteer
-        like two way authentication if pickd up/deleiverd successfully

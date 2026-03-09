@@ -6,10 +6,12 @@ import { getSocket } from "@/lib/socket";
 import { BadgeCheck, ChevronRight, HousePlus, Truck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useConvexAuth } from "convex/react";
 
 export default function Home() {
 
     const [role, setRole] = useState('')
+    const { isAuthenticated, isLoading } = useConvexAuth()
 
     useEffect(()=>{
         const fetchrole = localStorage.getItem('role')
@@ -48,8 +50,16 @@ export default function Home() {
                 <p className="text-base mt-2 max-w-xl text-shadow-md/40">Connecting Restaurants with NGOs to Reduce Food Waste</p>
 
                 <div className="mt-8 flex items-center gap-5">
-                    <Link href={'/auth/login'} className="bg-orange-500 py-4 px-10 rounded-xl text-2xl font-semibold">Donate Food</Link>
-                    <Link href={'/auth/login'} className="bg-green-600 py-4 px-10 rounded-xl text-2xl font-semibold">Find Food</Link>
+                    {!isLoading && isAuthenticated ? (
+                        <Link href={role ? `/${role.toLowerCase()}/dashboard` : '/'} className="bg-orange-500 py-4 px-10 rounded-xl text-2xl font-semibold">
+                            Go to Dashboard
+                        </Link>
+                    ) : (
+                        <>
+                            <Link href={'/auth/login'} className="bg-orange-500 py-4 px-10 rounded-xl text-2xl font-semibold">Donate Food</Link>
+                            <Link href={'/auth/login'} className="bg-green-600 py-4 px-10 rounded-xl text-2xl font-semibold">Find Food</Link>
+                        </>
+                    )}
                 </div>
             </section>
             <div className="py-14 flex justify-around items-center px-15 bg-amber-50">
@@ -119,15 +129,24 @@ export default function Home() {
                 <div className="text-4xl font-medium leading-loose">Join the Mission to End Food Waste</div>
                 <div className="text-muted-foreground text-xl">Together, we can make a difference</div>
                 <div className="flex gap-5 mt-10">
-                    <Link href={'/auth/login'} className="bg-orange-500 text-white py-4 px-10 rounded text-2xl font-semibold flex items-center gap-2">
-                        Become a Donor
-                        <ChevronRight className="size-7" />
-                    </Link>
+                    {!isLoading && isAuthenticated ? (
+                        <Link href={role ? `/${role.toLowerCase()}/dashboard` : '/'} className="bg-orange-500 text-white py-4 px-10 rounded text-2xl font-semibold flex items-center gap-2">
+                            Go to Dashboard
+                            <ChevronRight className="size-7" />
+                        </Link>
+                    ) : (
+                        <>
+                            <Link href={'/auth/login'} className="bg-orange-500 text-white py-4 px-10 rounded text-2xl font-semibold flex items-center gap-2">
+                                Become a Donor
+                                <ChevronRight className="size-7" />
+                            </Link>
 
-                    <Link href={'/auth/login'} className="bg-green-600 text-white py-4 px-10 rounded text-2xl font-semibold flex items-center gap-2">
-                        Join as NGO
-                        <ChevronRight className="size-7" />
-                    </Link>
+                            <Link href={'/auth/login'} className="bg-green-600 text-white py-4 px-10 rounded text-2xl font-semibold flex items-center gap-2">
+                                Join as NGO
+                                <ChevronRight className="size-7" />
+                            </Link>
+                        </>
+                    )}
                 </div>
             </div>
             <div className="py-10 flex justify-around items-center px-30">
