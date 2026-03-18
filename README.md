@@ -1,7 +1,7 @@
 # FeedForward
 
 FeedForward is a food rescue and redistribution platform connecting donors, NGOs, and volunteers.
-The app helps reduce food waste by enabling donation listings, pickup coordination, and delivery tracking.
+The app helps reduce food waste by enabling donation listings, pickup coordination, and delivery tracking with real-time updates powered by Socket.io.
 
 ## Current Project Status
 
@@ -28,29 +28,33 @@ Implemented and working modules:
 ## Project Structure
 
 ```text
-FeedForward/
-	app/
-		(shared-layout)/
-			about/
-			contact/
-			donor/
-			ngo/
-			volunteer/
-		api/
-		auth/
-	components/
-		ui/
-		web/
-	convex/
-		schema.ts
-		user.ts
-		donorProfile.ts
-		ngoProfile.ts
-		volunteerProfile.ts
-		foodList.ts
-		pickups.ts
-	lib/
-	schemas/
+repo/
+	FeedForward/
+		app/
+			(shared-layout)/
+				about/
+				contact/
+				donor/
+				ngo/
+				volunteer/
+			api/
+			auth/
+		components/
+			ui/
+			web/
+		convex/
+			schema.ts
+			user.ts
+			donorProfile.ts
+			ngoProfile.ts
+			volunteerProfile.ts
+			foodList.ts
+			pickups.ts
+		lib/
+		schemas/
+	socketServer/
+		index.js
+		package.json
 ```
 
 ## Key Functional Areas
@@ -85,27 +89,69 @@ Core backend modules:
 - `convex/foodList.ts`: Food listing operations.
 - `convex/pickups.ts`: Pickup lifecycle and assignment flow.
 
-## Local Setup
+## Real-Time Server (Socket.io)
 
-1. Install dependencies:
+The `socketServer/` folder contains a Node.js server powered by Socket.io for real-time communication features such as:
+
+- Live location tracking for deliveries
+- Real-time notifications for pickups and donations
+- Live map updates for volunteers and NGOs
+- Instant status updates across the platform
+
+### Running Socket Server
+
+1. Navigate to the socketServer folder:
 
 ```bash
+cd socketServer
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the server:
+
+```bash
+npm start
+```
+
+The socket server will run on its configured port (default: 4000) and enable real-time features for the FeedForward application.
+
+## Local Setup
+
+1. Install dependencies for FeedForward:
+
+```bash
+cd FeedForward
 pnpm install
 ```
 
-2. Configure environment variables in `.env.local`.
+2. Set up Socket Server (in a new terminal):
 
-3. Start dev server:
+```bash
+cd socketServer
+npm install
+npm start
+```
+
+3. Configure environment variables in `FeedForward/.env.local`.
+
+4. Start FeedForward dev server (in the FeedForward directory):
 
 ```bash
 pnpm dev
 ```
 
-4. Open:
+5. Open:
 
 ```text
 http://localhost:3000
 ```
+
+Both services should be running for full real-time functionality.
 
 ## Scripts
 
