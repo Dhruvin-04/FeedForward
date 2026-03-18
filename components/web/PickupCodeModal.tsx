@@ -43,7 +43,7 @@ export default function PickupCodeModal({
   const handleDownloadDetails = () => {
     // Create a text document with pickup details
     const details = `
-MEALBRIDGE PICKUP DETAILS
+FeedForward PICKUP DETAILS
 ==========================
 
 Pickup Code: ${pickup.pickupCode}
@@ -66,7 +66,7 @@ IMPORTANT INSTRUCTIONS:
 4. Collect the food carefully
 5. Deliver to the designated NGO beneficiaries
 
-Thank you for volunteering with MealBridge!
+Thank you for volunteering with FeedForward!
     `
 
     const element = document.createElement('a')
@@ -83,12 +83,12 @@ Thank you for volunteering with MealBridge!
   }
 
   const handleShare = () => {
-    const shareText = `I'm volunteering to pick up ${foodListing.foodName} from ${foodListing.businessName} with MealBridge! Pickup Code: ${pickup.pickupCode}`
+    const shareText = `I'm volunteering to pick up ${foodListing.foodName} from ${foodListing.businessName} with FeedForward! Pickup Code: ${pickup.pickupCode}`
 
     if (navigator.share) {
       navigator
         .share({
-          title: 'MealBridge Pickup',
+          title: 'FeedForward Pickup',
           text: shareText,
         })
         .catch((err) => console.log('Error sharing:', err))

@@ -26,7 +26,7 @@ export default function PickupDetailsDownload({ pickup }: PickupDetailsDownloadP
   const handleDownload = () => {
     const details = `
 ════════════════════════════════════════
-       MEALBRIDGE PICKUP DETAILS
+       FeedForward PICKUP DETAILS
 ════════════════════════════════════════
 
 PICKUP CODE: ${pickup.pickupCode ?? 'N/A'}

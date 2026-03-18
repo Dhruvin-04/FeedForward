@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FeedForward
 
-## Getting Started
+FeedForward is a food rescue and redistribution platform connecting donors, NGOs, and volunteers.
+The app helps reduce food waste by enabling donation listings, pickup coordination, and delivery tracking.
 
-First, run the development server:
+## Current Project Status
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Implemented and working modules:
+
+1. Authentication flow with role-based onboarding.
+2. Donor profile and food listing workflows.
+3. NGO profile and pickup management workflows.
+4. Volunteer pickup workflow (browse, accept, details, pickup code).
+5. Delivery and map-tracking UI components.
+6. Convex backend functions and schema for users, profiles, listings, and pickups.
+
+## Tech Stack
+
+- Next.js 16 (App Router)
+- React 19 + TypeScript
+- Tailwind CSS 4
+- Convex (database + backend functions)
+- better-auth (auth integration)
+- Socket.io client (real-time communication)
+- Zod + React Hook Form (validation and forms)
+- Leaflet / React-Leaflet (maps)
+
+## Project Structure
+
+```text
+FeedForward/
+	app/
+		(shared-layout)/
+			about/
+			contact/
+			donor/
+			ngo/
+			volunteer/
+		api/
+		auth/
+	components/
+		ui/
+		web/
+	convex/
+		schema.ts
+		user.ts
+		donorProfile.ts
+		ngoProfile.ts
+		volunteerProfile.ts
+		foodList.ts
+		pickups.ts
+	lib/
+	schemas/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Key Functional Areas
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Donor
+	 - Create and manage food listings.
+	 - Track donation-related activity.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. NGO
+	 - Browse and coordinate available food pickups.
+	 - Assign and manage pickup operations.
 
-## Learn More
+3. Volunteer
+	 - View available food listings.
+	 - Accept pickup requests.
+	 - Submit pickup details.
+	 - Receive and use pickup code.
 
-To learn more about Next.js, take a look at the following resources:
+4. Shared
+	 - About and contact pages.
+	 - Reusable UI and map components.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Backend (Convex)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Core backend modules:
 
-## Deploy on Vercel
+- `convex/schema.ts`: Database schema definitions.
+- `convex/user.ts`: User-level operations.
+- `convex/donorProfile.ts`: Donor profile logic.
+- `convex/ngoProfile.ts`: NGO profile logic.
+- `convex/volunteerProfile.ts`: Volunteer profile logic.
+- `convex/foodList.ts`: Food listing operations.
+- `convex/pickups.ts`: Pickup lifecycle and assignment flow.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Local Setup
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Install dependencies:
+
+```bash
+pnpm install
+```
+
+2. Configure environment variables in `.env.local`.
+
+3. Start dev server:
+
+```bash
+pnpm dev
+```
+
+4. Open:
+
+```text
+http://localhost:3000
+```
+
+## Scripts
+
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm lint` - Run ESLint checks
+
+## Current Notes
+
+- About and Contact pages are available from navbar and footer.
+- Home page behavior changes based on logged-in state.
+- Some role-landing CTA interactions are pending refinement.
+
+## GitHub Push Checklist
+
+1. Ensure `.env*`, `node_modules`, and `.next` are not committed.
+2. Run `pnpm lint` and `pnpm build` successfully.
+3. Review `git status` to confirm only intended files are included.
+4. Push branch after final verification.

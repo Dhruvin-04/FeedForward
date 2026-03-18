@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-I have successfully designed and implemented a **complete 4-step volunteer pickup workflow** for the MealBridge application. The feature allows volunteers to browse available food, accept pickups, fill in their details, and receive unique pickup codes from NGOs.
+I have successfully designed and implemented a **complete 4-step volunteer pickup workflow** for the FeedForward application. The feature allows volunteers to browse available food, accept pickups, fill in their details, and receive unique pickup codes from NGOs.
 
 ---
 
@@ -502,4 +502,4 @@ The feature is **immediately deployable** and provides a solid foundation for fu
 
 ---
 
-Thank you for the opportunity to build this valuable feature for MealBridge!
+Thank you for the opportunity to build this valuable feature for FeedForward!
