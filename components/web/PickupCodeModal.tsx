@@ -115,7 +115,7 @@ Thank you for volunteering with FeedForward!
 
       {/* Pickup Code Display */}
       <Card className="border-2 border-green-500">
-        <CardHeader className="bg-gradient-to-r from-green-50 to-green-100">
+        <CardHeader className="bg-linear-to-r from-green-50 to-green-100">
           <CardTitle>Your Pickup Code</CardTitle>
           <CardDescription>Save this code - you'll need it at pickup</CardDescription>
         </CardHeader>
